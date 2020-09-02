@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - 8080:80
+    volumes:
+      - ./nginx/:/etc/nginx/conf.d
+      - ./laravel:/var/www/laravel/
+    links:
+      - phpfpm
+    depends_on:
+      - phpfpm
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  phpfpm:
+    build:
+      context: .
+      dockerfile: ./php-fpm/Dockerfile
+    volumes:
+        - ./laravel:/var/www/laravel/
+        - ./php-fpm/php.ini:/usr/local/etc/php/php.ini
+    links: 
+        - db
+    depends_on:
+        - db
+    environment:
+        - DB_HOST=db
+        - DB_DATABASE=sample
+        - DB_USERNAME=root
+        - DB_PASSWORD=root
+    working_dir: "/var/www/laravel/"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  db:
+    image: mysql:8.0
+    container_name: db-host
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sample
+      MYSQL_USER: docker
+      MYSQL_PASSWORD: docker
+      TZ: 'Asia/Tokyo'
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./db/data:/var/lib/mysql
+      - ./db/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./db/sql:/docker-entrypoint-initdb.d
+    ports:
+      - 3306:3306
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOSTS=db-host
+      - PMA_USER=root
+      - PMA_PASSWORD=root
+    ports:
+      - 8088:80
+
+  mailcatcher:
+    image: schickling/mailcatcher
+    ports:
+      - 1080:1080
+      - 1025:1025
